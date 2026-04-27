@@ -1,0 +1,11 @@
+streamlit
+pandas 
+numpy 
+math
+plotly
+plotly.express
+scipy
+matplotlib
+io 
+pulp 
+base64
