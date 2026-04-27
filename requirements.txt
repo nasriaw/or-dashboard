@@ -6,6 +6,6 @@ plotly
 plotly.express
 scipy
 matplotlib
-io 
+
 pulp 
 base64
