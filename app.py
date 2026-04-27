@@ -451,7 +451,7 @@ def render_beranda():
         """)
         
         features = [
-            ("📚", "Materi Lengkap 12 Bab", "Akses materi dari Pendahuluan hingga Studi Kasus Komprehensif"),
+            ("📚", "Materi Lengkap 13 Bab", "Akses materi dari Pendahuluan hingga Studi Kasus Komprehensif"),
             ("🧮", "Solver Python Built-in", "Selesaikan contoh & tugas langsung dengan kode Python"),
             ("📊", "Visualisasi Interaktif", "Grafik dan chart untuk memahami konsep OR"),
             ("📋", "Tracker Tugas", "Pantau progress penyelesaian tugas per bab"),
