@@ -1,11 +1,13 @@
 streamlit
 pandas 
 numpy 
-math
 plotly
 plotly.express
 scipy
 matplotlib
-
+#base64
 pulp 
+
+
+pip==26.1
 
