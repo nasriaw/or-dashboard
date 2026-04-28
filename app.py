@@ -621,106 +621,141 @@ def render_solver():
 
 def render_solver_lp():
     """Solver untuk Linear Programming"""
+
     st.subheader("🎯 Linear Programming Solver")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("### Input Parameter")
-        tipe = st.radio("Tipe:", ["Maximasi", "Minimasi"])
-        
-        st.markdown("**Fungsi Tujuan:**")
-        c1 = st.number_input("Koefisien x₁", value=800.0)
-        c2 = st.number_input("Koefisien x₂", value=600.0)
-        
-        st.markdown("**Kendala 1:**")
-        a11 = st.number_input("a₁₁ (koef x₁)", value=2.0, key='a11')
-        a12 = st.number_input("a₁₂ (koef x₂)", value=3.0, key='a12')
-        b1 = st.number_input("b₁ (RHS)", value=60.0, key='b1')
-        
-        st.markdown("**Kendala 2:**")
-        a21 = st.number_input("a₂₁ (koef x₁)", value=5.0, key='a21')
-        a22 = st.number_input("a₂₂ (koef x₂)", value=3.0, key='a22')
-        b2 = st.number_input("b₂ (RHS)", value=100.0, key='b2')
     
+        # Input jumlah variabel dan kendala
+        st.markdown("**Konfigurasi Masalah:**")
+        col_config1, col_config2 = st.columns(2)
+        with col_config1:
+            num_vars = st.number_input("Jumlah Variabel (x):", min_value=2, max_value=10, value=2)
+        with col_config2:
+            num_constraints = st.number_input("Jumlah Kendala:", min_value=1, max_value=10, value=2)
+    
+        tipe = st.radio("Tipe:", ["Maximasi", "Minimasi"])
+    
+        # Input Fungsi Tujuan
+        st.markdown("**Fungsi Tujuan (Koefisien):**")
+        c = []
+        cols_obj = st.columns(int(num_vars))
+        for i, col in enumerate(cols_obj):
+            with col:
+                val = st.number_input(f"c_{i+1} (x_{i+1})", value=800.0 if i == 0 else 600.0, key=f'c_{i}')
+                c.append(val)
+    
+        # Input Kendala
+        st.markdown("**Matriks Kendala (A):**")
+        A_ub = []
+        b_ub = []
+        for i in range(int(num_constraints)):
+            st.markdown(f"**Kendala {i+1}:**")
+            row = []
+            cols_constraint = st.columns(int(num_vars) + 1)
+        
+            for j in range(int(num_vars)):
+                with cols_constraint[j]:
+                    default_val = 2.0 if (i == 0 and j == 0) else (3.0 if (i == 0 and j == 1) else (5.0 if (i == 1 and j == 0) else 3.0))
+                    val = st.number_input(f"a_{i+1}{j+1} (x_{j+1})", value=default_val, key=f'a_{i}_{j}')
+                    row.append(val)
+        
+            with cols_constraint[int(num_vars)]:
+                default_rhs = 60.0 if i == 0 else 100.0
+                rhs = st.number_input(f"b_{i+1} (RHS)", value=default_rhs, key=f'b_{i}')
+                b_ub.append(rhs)
+        
+            A_ub.append(row)
+
     with col2:
         st.markdown("### Hasil Perhitungan")
-        
+    
         if st.button("🔢 Hitung Solusi Optimal"):
             # Setup LP
-            c = [-c1, -c2] if tipe == "Maximasi" else [c1, c2]
-            A_ub = [[a11, a12], [a21, a22]]
-            b_ub = [b1, b2]
-            bounds = [(0, None), (0, None)]
+            c_obj = [-val for val in c] if tipe == "Maximasi" else c
+            bounds = [(0, None)] * int(num_vars)
+        
+            try:
+                result = linprog(c_obj, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
             
-            result = solve_lp_graphical(c, A_ub, b_ub, bounds=bounds)
-            
-            if result.success:
-                x1_opt, x2_opt = result.x
-                z_opt = c1 * x1_opt + c2 * x2_opt
+                if result.success:
+                    x_opt = result.x
+                    z_opt = sum(c[i] * x_opt[i] for i in range(int(num_vars)))
                 
-                st.markdown(f"""
-                <div class="result-box">
-                    <h4>✅ Solusi Optimal Ditemukan</h4>
-                    <p><strong>x₁ (Meja):</strong> {x1_opt:.2f} unit</p>
-                    <p><strong>x₂ (Kursi):</strong> {x2_opt:.2f} unit</p>
-                    <p><strong>Z {'Maksimum' if tipe == 'Maximasi' else 'Minimum'}:</strong> Rp {z_opt:,.2f}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                    # Tampilkan solusi
+                    st.success("✅ Solusi Optimal Ditemukan!")
                 
-                # Visualisasi grafis
-                fig = go.Figure()
+                    results_data = []
+                    for i, val in enumerate(x_opt):
+                        results_data.append({"Variabel": f"x_{i+1}", "Nilai": f"{val:.4f}"})
                 
-                # Garis kendala
-                x = np.linspace(0, max(b1/a11, b2/a21) * 1.2, 100)
+                    df_result = pd.DataFrame(results_data)
+                    st.dataframe(df_result)
                 
-                if a12 != 0:
-                    y1 = (b1 - a11 * x) / a12
-                    fig.add_trace(go.Scatter(x=x, y=np.maximum(y1, 0), 
-                                           mode='lines', name=f'Kendala 1: {a11}x₁+{a12}x₂≤{b1}'))
+                    st.metric(f"Z {'Maksimum' if tipe == 'Maximasi' else 'Minimum'}", f"Rp {z_opt:,.2f}")
                 
-                if a22 != 0:
-                    y2 = (b2 - a21 * x) / a22
-                    fig.add_trace(go.Scatter(x=x, y=np.maximum(y2, 0), 
-                                           mode='lines', name=f'Kendala 2: {a21}x₁+{a22}x₂≤{b2}'))
+                    # Visualisasi untuk 2D (jika ada 2 variabel)
+                    if int(num_vars) == 2:
+                        fig = go.Figure()
+                    
+                        # Garis kendala
+                        x_range = np.linspace(0, 100, 100)
+                    
+                        for i, (a_row, b_val) in enumerate(zip(A_ub, b_ub)):
+                            if len(a_row) >= 2 and a_row[1] != 0:
+                                y_vals = (b_val - a_row[0] * x_range) / a_row[1]
+                                fig.add_trace(go.Scatter(x=x_range, y=np.maximum(y_vals, 0), 
+                                                   mode='lines', name=f'Kendala {i+1}'))
+                    
+                        # Titik optimal
+                        fig.add_trace(go.Scatter(x=[x_opt[0]], y=[x_opt[1]], 
+                                           mode='markers+text', 
+                                           marker=dict(size=15, color='red'),
+                                           text=[f"Optimal<br>({x_opt[0]:.2f}, {x_opt[1]:.2f})"],
+                                           textposition="top center",
+                                           name='Titik Optimal'))
+                    
+                        fig.update_layout(
+                            title="Visualisasi Grafis LP (2D)",
+                            xaxis_title="x₁",
+                            yaxis_title="x₂",
+                            showlegend=True,
+                            height=500
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
                 
-                # Titik optimal
-                fig.add_trace(go.Scatter(x=[x1_opt], y=[x2_opt], 
-                                       mode='markers', marker=dict(size=15, color='red'),
-                                       name=f'Optimal ({x1_opt:.1f}, {x2_opt:.1f})'))
-                
-                fig.update_layout(
-                    title="Visualisasi Grafis LP",
-                    xaxis_title="x₁",
-                    yaxis_title="x₂",
-                    showlegend=True
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Kode Python
-                with st.expander("🐍 Lihat Kode Python"):
-                    st.code(f"""
-from scipy.optimize import linprog
+                    # Kode Python
+                    with st.expander("🐍 Lihat Kode Python"):
+                        c_str = str(c_obj)
+                        A_str = str(A_ub)
+                        b_str = str(b_ub)
+                        st.code(f"""
+    from scipy.optimize import linprog
 
-# Fungsi tujuan (minimasi, untuk max gunakan negatif)
-c = [{-c1 if tipe == 'Maximasi' else c1}, {-c2 if tipe == 'Maximasi' else c2}]
+    # Fungsi tujuan
+    c = {c_str}
 
-# Matriks kendala (<=)
-A_ub = [[{a11}, {a12}], [{a21}, {a22}]]
-b_ub = [{b1}, {b2}]
+    # Matriks kendala (<=)
+    A_ub = {A_str}
+    b_ub = {b_str}
 
-# Bounds (x1, x2 >= 0)
-bounds = [(0, None), (0, None)]
+    # Bounds (variabel >= 0)
+    bounds = [(0, None) for _ in range({int(num_vars)})]
 
-# Solve
-result = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
+    # Solve
+    result = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
 
-print(f"x1 = {{result.x[0]:.2f}}")
-print(f"x2 = {{result.x[1]:.2f}}")
-print(f"Z = {{-result.fun if tipe == 'Maximasi' else result.fun:.2f}}")
+    # Hasil
+    print(f"Solusi optimal: {{result.x}}")
+    print(f"Nilai optimal: {{-result.fun if {tipe == 'Maximasi'} else result.fun:.2f}}")
                     """, language='python')
-            else:
-                st.error("❌ Tidak ditemukan solusi optimal")
+                else:
+                    st.error("❌ Tidak ditemukan solusi optimal")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
 
 def render_solver_transportasi():
     """Solver untuk Masalah Transportasi"""
